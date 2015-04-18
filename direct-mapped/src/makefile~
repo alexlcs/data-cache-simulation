@@ -1,0 +1,2 @@
+all:
+	javac sys1 -d ../bin
