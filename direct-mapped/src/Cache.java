@@ -1,6 +1,7 @@
 class Cache
 {
 	private int id;		// only used by k-way associative
+	private int offset; // is 4 (HARDCODED)
 	private int index;	// index
 	private int valid;	// valid bit
 	private int tag;	// tag
@@ -10,14 +11,10 @@ class Cache
 	int order;
 	
 	Cache()
-	{
-		id		= -1;
-		valid	= -1;
-		tag		= -1;
-		dirty	= -1;
+	{	Cache(-1, 4, -1, -1, -1);
 	}
 
-	Cache(int id, int valid, int tag, int dirty)
+	Cache(int id, int offset, int valid, int tag, int dirty)
 	{
 		this.id		= id;
 		this.valid	= valid;
