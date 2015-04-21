@@ -1,5 +1,11 @@
 import java.io.*;
-
+/*
+	!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	!!!                                                       !!!
+	!!!	  NOTE: for proper indentation use 1 tab = 4 spaces   !!!
+	!!!                                                       !!!
+	!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+*/
 class sys1
 {
 	// input data
@@ -14,8 +20,34 @@ class sys1
 	private int			tagSize;
 	// other
 	private ReadFile	readFile;		// object to read xex file format
-	private Cache		cacheBlock[];	// cache
+	private int			rows;			// # of rows in cache
+	private CacheBlock	cacheBlock[];	// cache
 	private int			blockSize = 16;	// number of bytes in one block for data (HARDCODED HERE)
+	private int			length = 100000;// # of rows in file (HARDCODED HERE)
+
+	/*
+		HOW TO UNDERSTAND stasArray[]:
+		------------------------------
+		[0]  = dataReads 		o
+		[1]  = dataWrites 		o
+		[2]  = dataAccesses		o
+		
+		[3]  = dataReadMisses 	x
+		[4]  = dataWriteMisses 	x
+		[5]  = dataMisses 		x
+		
+		[6]  = dirtyDataReadMisses 		x
+		[7]  = dirtyDataWriteMisses 	x
+		
+		[8]  = numberOfBytesReadFromMemory 	x
+		[9]  = numberOfBytesWrittenToMemory	x
+		
+		[10] = totalAccessTimeForReads 	x
+		[11] = totalAccessTimeForWrites	x
+		
+		[12] = dataCacheMissRate x (read misses + write misses) / total access
+	*/
+	private int statsArray[];
 
 	sys1(String args[])
 	{
@@ -39,13 +71,63 @@ class sys1
 		offsetSize	= (int)( Math.log10(blockSize)/Math.log10(2) );
 		indexSize	= (int)( Math.log10(cacheSize*1024/blockSize)/Math.log10(2));
 		tagSize		= 32 - offsetSize - indexSize;
-		//System.out.println("offset: " + offsetSize + " | index: " + indexSize + " | tag: " + tagSize);
 
-		// read file into arrays
+		// read file into arrays that are inside ReadFile.java
 		System.out.println("Calculating...");
 		readFile = new ReadFile(filename);
 
-		System.out.println(readFile.getRW(3) +" "+ readFile.getDataAddress(3) +" "+ readFile.getNumOfBytes(3));
+		// compute # of rows in cache & instantiate cacheBlock
+		rows = (cacheSize*1024)/16;
+		cacheBlock = new CacheBlock[rows];
+		for(int i=0; i<cacheBlock.length; i++) cacheBlock[i] = new CacheBlock();
+
+		//System.out.println("offset: " + offsetSize + " | index: " + indexSize + " | tag: " + tagSize + " | rows: " + cacheBlock.length);
+
+		// instantiate statsArray
+		statsArray = new int[13];
+		for(int i=0; i<statsArray.length; i++) statsArray[i] = 0;
+
+		// STATS: find data reads and writes
+		for(int i=0; i<length; i++)
+		{	int t = readFile.getRW(i);
+			if(t == 0) statsArray[0]++;
+			else statsArray[1]++;
+		}
+		System.out.println("Reads: " + statsArray[0] + " | Writes: " + statsArray[1] + " | Total: " + (statsArray[0]+statsArray[1]));
+
+		// STATS
+		for(int i=0; i<length; i++)
+		{
+			for(int j=0; j<rows; j++)
+			{
+				// if valid bit is off
+				if(cacheBlock[j].getValid() == 0)
+				{
+					cacheBlock[j].setValid();
+					if(readFile.getRW(i) == 0) statsArray[3]++;
+					else if(readFile.getRW(i) == 1) statsArray[4]++;
+					
+					break;
+				}
+				else
+				{
+					
+				}
+			}
+		}
+		
+		System.out.println(statsArray[3] + " _ " + statsArray[4]);
+	}
+
+	private long indexOf(long n)
+	{
+		long index = n >>> offsetSize;
+		int mask = (int)Math.pow(2, indexSize) - 1;
+		return index & mask;
+	}
+
+	private long tagOf(long n)
+	{	return n >>> (indexSize + offsetSize);
 	}
 
 	public static void main(String args[])
@@ -60,3 +142,9 @@ class sys1
 		}
 	}
 }
+
+/*
+	System.out.println(Long.toBinaryString(readFile.getDataAddress(88)));
+	System.out.println(Long.toBinaryString(indexOf(readFile.getDataAddress(88))));
+	System.out.println(Long.toBinaryString(tagOf(readFile.getDataAddress(88))));
+*/
