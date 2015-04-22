@@ -1,33 +1,38 @@
 class CacheBlock
 {
-	private int id;		// only used by k-way associative
-	private int offset; // is 4 (HARDCODED HERE)
+	private int offset; // =4 (HARDCODED HERE)
 	private int index;	// index
 	private int valid;	// valid bit
-	private int tag;	// tag
+	private long tag;	// tag
 	private int dirty;	// dirty bit
 
 	// data fields for verbose mode
 	int order;
 	
 	CacheBlock()
-	{	this(-1, -1, 0, -1, 0);
+	{	this(0, 0, 0, 0);
 	}
 
-	CacheBlock(int id, int offset, int valid, int tag, int dirty)
+	CacheBlock(int index, int valid, int dirty, long tag)
 	{
-		this.id		= id;
-		this.offset = offset;
+		this.offset = 4;
+		this.index 	= index;
 		this.valid	= valid;
-		this.tag	= tag;
 		this.dirty	= dirty;
+		this.tag	= tag;
 	}
 	
 	public int getValid(){ 	return valid; }
-	public int getTag(){ 	return tag; }
+	public long getTag(){ 	return tag; }
 	public int getDirty(){ 	return dirty; }
 	
+	public void setIndex(int newIndex){ index = newIndex;}
 	public void setValid(){				valid = 1; }
-	public void setTag(long newTag){	tag = (int)newTag; }
+	public void setTag(long newTag){	tag = newTag; }
 	public void setDirty(int newDirty){	dirty = newDirty; }
+	
+	public void print()
+	{
+		System.out.println(index +"\t"+ valid +"\t"+ dirty +"\t"+ tag);
+	}
 }

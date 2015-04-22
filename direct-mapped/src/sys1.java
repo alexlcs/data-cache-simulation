@@ -24,6 +24,7 @@ class sys1
 	private CacheBlock	cacheBlock[];	// cache
 	private int			blockSize = 16;	// number of bytes in one block for data (HARDCODED HERE)
 	private int			length = 100000;// # of rows in file (HARDCODED HERE)
+	private int 		missPenalty = 80; 
 
 	/*
 		HOW TO UNDERSTAND stasArray[]:
@@ -87,43 +88,106 @@ class sys1
 		statsArray = new int[13];
 		for(int i=0; i<statsArray.length; i++) statsArray[i] = 0;
 
-		// STATS: find data reads and writes
+		// STATS: 
+		//	find data reads and writes
 		for(int i=0; i<length; i++)
 		{	int t = readFile.getRW(i);
 			if(t == 0) statsArray[0]++;
 			else statsArray[1]++;
 		}
-		System.out.println("Reads: " + statsArray[0] + " | Writes: " + statsArray[1] + " | Total: " + (statsArray[0]+statsArray[1]));
-
-		// STATS
-		for(int i=0; i<length; i++)
+		
+		// give indexes to CacheBlock
+		for(int i=0; i<cacheBlock.length; i++)
 		{
-			for(int j=0; j<rows; j++)
-			{
-				// if valid bit is off
-				if(cacheBlock[j].getValid() == 0)
-				{
-					cacheBlock[j].setValid();
-					if(readFile.getRW(i) == 0) statsArray[3]++;
-					else if(readFile.getRW(i) == 1) statsArray[4]++;
-					
-					break;
-				}
-				else
-				{
-					
-				}
-			}
+			cacheBlock[i].setIndex(i);
 		}
 		
-		System.out.println(statsArray[3] + " _ " + statsArray[4]);
+		// for every row in readFile
+		for(int i=0; i<length; i++)
+		{
+			int index = indexOf(readFile.getDataAddress(i));
+			
+			//System.out.println("\n"+ (Long.toBinaryString(readFile.getDataAddress(i))) +"\n"+ Integer.toBinaryString(index));
+			
+			// if cache hit (tag match)
+			if( tagOf(readFile.getDataAddress(i)) == cacheBlock[index].getTag() )
+			{
+				// if read
+				if(readFile.getRW(i) == 0) 
+				{ 
+					cacheBlock[index].setDirty(0); 
+				}
+				// if write
+				else 
+				{ 
+					cacheBlock[index].setDirty(1); 
+				}
+			}
+			// else if cache miss
+			else
+			{
+				// if clean miss (valid = 0 OR dirty = 0)
+				if(cacheBlock[index].getValid() == 0 || cacheBlock[index].getDirty() == 0)
+				{
+					cacheBlock[index].setValid();
+					cacheBlock[index].setTag(tagOf(readFile.getDataAddress(i))); // DO I SET TAG IN HERE ?
+					// if read
+					if(readFile.getRW(i) == 0) 
+					{ 
+						cacheBlock[index].setDirty(0); 
+					}
+					// if write
+					else 
+					{ 
+						cacheBlock[index].setDirty(1); 
+					}
+					statsArray[3]++; // rmiss++
+				}
+				// if dirty miss (dirty = 1)
+				else if(cacheBlock[index].getDirty() == 1)
+				{
+					// System.out.println("dirty miss");
+					cacheBlock[index].setTag(tagOf(readFile.getDataAddress(i))); // DO I SET TAG IN HERE ?
+					// if read
+					if(readFile.getRW(i) == 0) 
+					{ 
+						cacheBlock[index].setDirty(0); 
+						//statsArray[3]++;
+					}
+					// if write
+					else 
+					{ 
+						cacheBlock[index].setDirty(1); 
+						statsArray[7]++;
+					}
+					statsArray[6]++; // dirty rmiss ++
+					statsArray[7]++; // drity wmiss ++
+				}
+			}
+				
+		}
+		
+		// TEST: print entire cache tabel
+		for(int i=0; i<cacheBlock.length; i++)
+		{
+			//cacheBlock[i].print();
+		}
+
+		statsArray[5] = statsArray[3]+statsArray[4];
+		System.out.println("loads " + statsArray[0] + " | stores " + statsArray[1] + " | total " + (statsArray[0]+statsArray[1]));
+		System.out.println("rmiss " + statsArray[3] + " | wmiss " + statsArray[4] + " | total " + statsArray[5] );
+		System.out.println("dirty rmiss " + statsArray[6] + " | dirty wmiss " + statsArray[7]);
+		System.out.println("bytes read " + statsArray[8] + " | bytes written " + statsArray[9]);
+		System.out.println("read time " + statsArray[10] + " | write time " + statsArray[11]);
+		System.out.println("total time " + (statsArray[10]+statsArray[11]) );
+		System.out.println("miss rate " + ((double)statsArray[5])/(double)statsArray[2] );
 	}
 
-	private long indexOf(long n)
+	private int indexOf(long n)
 	{
 		long index = n >>> offsetSize;
 		int mask = (int)Math.pow(2, indexSize) - 1;
-		return index & mask;
+		return (int)(index & mask);
 	}
 
 	private long tagOf(long n)
